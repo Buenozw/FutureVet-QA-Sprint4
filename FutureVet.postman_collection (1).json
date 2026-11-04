@@ -1,0 +1,1027 @@
+{
+  "info": {
+    "_postman_id": "8c6bf1de-afce-4126-9adf-56aeb3906fbe",
+    "name": "FutureVet - Testes Automatizados (Sprint 4)",
+    "description": "Testes automatizados de integração e desempenho da API REST do FutureVet (Challenge FIAP 2026 - Clyvo Vet). Rodar em ordem pelo Collection Runner. Cada execução cria contas novas, então pode ser repetida e rodada com várias iterações.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Desempenho: rotas comuns em menos de 3 s; cadastro de conta em menos de 8 s,",
+          "// porque a senha é criptografada com BCrypt, um algoritmo lento de propósito",
+          "if (pm.info.requestName !== \"Health check da aplicação\") {",
+          "  const cadastro = pm.request.url.getPath().endsWith(\"/api/auth/registro\");",
+          "  const limite = cadastro ? 8000 : 3000;",
+          "  pm.test(`Desempenho: resposta em menos de ${limite / 1000} s`, () =>",
+          "    pm.expect(pm.response.responseTime).to.be.below(limite));",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://challenge-sprint3-java.onrender.com"
+    },
+    {
+      "key": "senha",
+      "value": "SenhaQa123!"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "usuarioId",
+      "value": ""
+    },
+    {
+      "key": "emailTutor",
+      "value": ""
+    },
+    {
+      "key": "cpfTutor",
+      "value": ""
+    },
+    {
+      "key": "animalId",
+      "value": ""
+    },
+    {
+      "key": "vacinaId",
+      "value": ""
+    },
+    {
+      "key": "consultaId",
+      "value": ""
+    },
+    {
+      "key": "dataConsulta",
+      "value": ""
+    },
+    {
+      "key": "horaConsulta",
+      "value": ""
+    },
+    {
+      "key": "localConsulta",
+      "value": ""
+    },
+    {
+      "key": "dataDomingo",
+      "value": ""
+    },
+    {
+      "key": "emailOutro",
+      "value": ""
+    },
+    {
+      "key": "cpfOutro",
+      "value": ""
+    },
+    {
+      "key": "tokenOutro",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Disponibilidade",
+      "description": "Confere se a API está no ar (também acorda o Render).",
+      "item": [
+        {
+          "name": "Health check da aplicação",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Aplicação com status UP\", () => pm.expect(pm.response.json().status).to.eql(\"UP\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Autenticação",
+      "description": "Cadastro de tutor e login com JWT.",
+      "item": [
+        {
+          "name": "Cadastrar tutor",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Dados controlados: e-mail e CPF únicos por execução, o resto é fixo",
+                  "const ts = Date.now();",
+                  "pm.collectionVariables.set(\"emailTutor\", `tutor.qa.${ts}@futurevet.com`);",
+                  "pm.collectionVariables.set(\"cpfTutor\", String(ts).slice(-11));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"Status 201 Created\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Retorna token JWT do tipo Bearer\", () => {",
+                  "  pm.expect(body.token).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(body.token.split(\".\")).to.have.lengthOf(3);",
+                  "  pm.expect(body.tipo).to.eql(\"Bearer\");",
+                  "});",
+                  "pm.test(\"Conta criada com perfil TUTOR e e-mail informado\", () => {",
+                  "  pm.expect(body.role).to.eql(\"TUTOR\");",
+                  "  pm.expect(body.email).to.eql(pm.collectionVariables.get(\"emailTutor\"));",
+                  "});",
+                  "pm.collectionVariables.set(\"token\", body.token);",
+                  "pm.collectionVariables.set(\"usuarioId\", body.usuarioId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/registro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "registro"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Tutor QA Postman\",\n  \"email\": \"{{emailTutor}}\",\n  \"cpf\": \"{{cpfTutor}}\",\n  \"telefone\": \"11987654321\",\n  \"senha\": \"{{senha}}\",\n  \"confirmacao\": \"{{senha}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Login com senha incorreta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"Status 401 Unauthorized\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Mensagem de credenciais inválidas\", () => pm.expect(body.mensagem).to.eql(\"E-mail ou senha inválidos.\"));",
+                  "pm.test(\"Nenhum token é devolvido\", () => pm.expect(body).to.not.have.property(\"token\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailTutor}}\",\n  \"senha\": \"SenhaErrada1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Login com credenciais válidas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"Status 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Retorna token e dados do tutor\", () => {",
+                  "  pm.expect(body.token).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(body.nome).to.eql(\"Tutor QA Postman\");",
+                  "  pm.expect(body.usuarioId).to.eql(Number(pm.collectionVariables.get(\"usuarioId\")));",
+                  "});",
+                  "pm.collectionVariables.set(\"token\", body.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailTutor}}\",\n  \"senha\": \"{{senha}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Acesso sem token é bloqueado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401 sem o header Authorization\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/animais",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "animais"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Animais",
+      "description": "CRUD de animais do tutor autenticado.",
+      "item": [
+        {
+          "name": "Cadastrar animal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"Status 201 Created\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Devolve o id do animal criado\", () => pm.expect(body.id).to.be.a(\"number\").and.above(0));",
+                  "pm.collectionVariables.set(\"animalId\", body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/animais",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "animais"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Thor\",\n  \"especie\": \"CAO\",\n  \"raca\": \"Labrador\",\n  \"idade\": \"3 anos\",\n  \"porte\": \"GRANDE\",\n  \"peso\": 28.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cadastrar animal com dados inválidos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"Status 400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensagem de dados inválidos\", () => pm.expect(body.mensagem).to.eql(\"Dados inválidos.\"));",
+                  "pm.test(\"Aponta os campos nome, especie e peso\", () => {",
+                  "  const campos = body.detalhes.map(d => d.split(\":\")[0]);",
+                  "  pm.expect(campos).to.include.members([\"nome\", \"especie\", \"peso\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/animais",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "animais"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"\",\n  \"especie\": \"DINOSSAURO\",\n  \"peso\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Listar animais do tutor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const thor = body.find(a => a.id === Number(pm.collectionVariables.get(\"animalId\")));",
+                  "pm.test(\"Status 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Lista só o animal deste tutor\", () => {",
+                  "  pm.expect(body).to.be.an(\"array\").with.lengthOf(1);",
+                  "  pm.expect(body[0].usuarioId).to.eql(Number(pm.collectionVariables.get(\"usuarioId\")));",
+                  "});",
+                  "pm.test(\"Thor aparece com os dados cadastrados\", () => {",
+                  "  pm.expect(thor).to.include({ nome: \"Thor\", especie: \"CAO\", raca: \"Labrador\", porte: \"GRANDE\" });",
+                  "  pm.expect(Number(thor.peso)).to.eql(28.5);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/animais",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "animais"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Atualizar peso do animal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"Status 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Peso atualizado para 29.00 e nome mantido\", () => {",
+                  "  pm.expect(Number(body.peso)).to.eql(29);",
+                  "  pm.expect(body.nome).to.eql(\"Thor\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/animais/{{animalId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "animais",
+                "{{animalId}}"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Thor\",\n  \"especie\": \"CAO\",\n  \"raca\": \"Labrador\",\n  \"idade\": \"3 anos\",\n  \"porte\": \"GRANDE\",\n  \"peso\": 29.0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Carteira de vacinação",
+      "description": "Registro de dose e classificação automática.",
+      "item": [
+        {
+          "name": "Registrar vacina",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"Status 201 Created\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Devolve o id da vacina\", () => pm.expect(body.id).to.be.a(\"number\").and.above(0));",
+                  "pm.collectionVariables.set(\"vacinaId\", body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vacinas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "vacinas"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"animalId\": {{animalId}},\n  \"nome\": \"V10\",\n  \"data\": \"2026-10-01\",\n  \"proximaDose\": \"2027-10-01\",\n  \"local\": \"Clínica FutureVet\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Consultar carteira de vacinação",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const item = body.find(i => i.vacina.id === Number(pm.collectionVariables.get(\"vacinaId\")));",
+                  "pm.test(\"Status 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"V10 do Thor está na carteira\", () => {",
+                  "  pm.expect(item.vacina.nome).to.eql(\"V10\");",
+                  "  pm.expect(item.vacina.animal).to.eql(\"Thor\");",
+                  "  pm.expect(item.vacina.proximaDose).to.eql(\"2027-10-01\");",
+                  "});",
+                  "pm.test(\"Situação calculada como EM_DIA\", () => pm.expect(item.situacao).to.eql(\"EM_DIA\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/vacinas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "vacinas"
+              ]
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Agenda de consultas",
+      "description": "Solicitação de consulta e regras de horário.",
+      "item": [
+        {
+          "name": "Solicitar consulta",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Data futura (30 dias à frente, fora de domingo), hora cheia entre 08:00 e 17:00 e sala única",
+                  "const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, \"0\")}-${String(d.getDate()).padStart(2, \"0\")}`;",
+                  "const d = new Date();",
+                  "d.setDate(d.getDate() + 30);",
+                  "if (d.getDay() === 0) d.setDate(d.getDate() + 1);",
+                  "pm.collectionVariables.set(\"dataConsulta\", fmt(d));",
+                  "pm.collectionVariables.set(\"horaConsulta\", String(8 + Math.floor(Math.random() * 10)).padStart(2, \"0\") + \":00\");",
+                  "pm.collectionVariables.set(\"localConsulta\", `Sala QA ${Date.now()}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"Status 201 Created\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Devolve o id da consulta\", () => pm.expect(body.id).to.be.a(\"number\").and.above(0));",
+                  "pm.collectionVariables.set(\"consultaId\", body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/consultas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "consultas"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"animalId\": {{animalId}},\n  \"tipo\": \"Rotina\",\n  \"data\": \"{{dataConsulta}}\",\n  \"hora\": \"{{horaConsulta}}\",\n  \"local\": \"{{localConsulta}}\",\n  \"observacao\": \"Agendada pelo teste automatizado\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Consultar consulta solicitada",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"Status 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Consulta aguardando confirmação (AGENDADA)\", () => pm.expect(body.status).to.eql(\"AGENDADA\"));",
+                  "pm.test(\"Data, hora, local e animal corretos\", () => {",
+                  "  pm.expect(body.data).to.eql(pm.collectionVariables.get(\"dataConsulta\"));",
+                  "  pm.expect(body.hora).to.eql(pm.collectionVariables.get(\"horaConsulta\"));",
+                  "  pm.expect(body.local).to.eql(pm.collectionVariables.get(\"localConsulta\"));",
+                  "  pm.expect(body.animal).to.eql(\"Thor\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/consultas/{{consultaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "consultas",
+                "{{consultaId}}"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Solicitar consulta em horário ocupado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensagem de conflito de horário\", () =>",
+                  "  pm.expect(pm.response.json().mensagem).to.eql(\"Este horário já está ocupado para o animal ou local escolhido.\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/consultas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "consultas"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"animalId\": {{animalId}},\n  \"tipo\": \"Rotina\",\n  \"data\": \"{{dataConsulta}}\",\n  \"hora\": \"{{horaConsulta}}\",\n  \"local\": \"{{localConsulta}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Solicitar consulta em um domingo",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Próximo domingo com pelo menos 7 dias de antecedência",
+                  "const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, \"0\")}-${String(d.getDate()).padStart(2, \"0\")}`;",
+                  "const d = new Date();",
+                  "d.setDate(d.getDate() + 7 + ((7 - d.getDay()) % 7));",
+                  "pm.collectionVariables.set(\"dataDomingo\", fmt(d));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensagem de horário de funcionamento\", () =>",
+                  "  pm.expect(pm.response.json().mensagem).to.eql(\"Agendamentos de segunda a sábado, das 08:00 às 18:00.\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/consultas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "consultas"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"animalId\": {{animalId}},\n  \"tipo\": \"Rotina\",\n  \"data\": \"{{dataDomingo}}\",\n  \"hora\": \"10:00\",\n  \"local\": \"{{localConsulta}} B\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Regras e segurança",
+      "description": "Preservação de histórico e isolamento entre tutores.",
+      "item": [
+        {
+          "name": "Excluir animal com histórico é bloqueado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensagem de histórico preservado\", () =>",
+                  "  pm.expect(pm.response.json().mensagem).to.eql(",
+                  "    \"Este animal possui histórico de consultas ou vacinas. Preserve o histórico; a exclusão foi bloqueada.\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/animais/{{animalId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "animais",
+                "{{animalId}}"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Cadastrar segundo tutor",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ts = Date.now() + 7;",
+                  "pm.collectionVariables.set(\"emailOutro\", `outro.qa.${ts}@futurevet.com`);",
+                  "pm.collectionVariables.set(\"cpfOutro\", String(ts).slice(-11));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test(\"Status 201 Created\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Segundo tutor recebe o próprio token\", () => {",
+                  "  pm.expect(body.token).to.be.a(\"string\").and.not.eql(pm.collectionVariables.get(\"token\"));",
+                  "});",
+                  "pm.collectionVariables.set(\"tokenOutro\", body.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/registro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "registro"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Outro Tutor QA\",\n  \"email\": \"{{emailOutro}}\",\n  \"cpf\": \"{{cpfOutro}}\",\n  \"senha\": \"{{senha}}\",\n  \"confirmacao\": \"{{senha}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Outro tutor não acessa o animal do primeiro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403 Forbidden\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Mensagem de permissão negada\", () =>",
+                  "  pm.expect(pm.response.json().mensagem).to.eql(\"Você não tem permissão para acessar este registro.\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/animais/{{animalId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "animais",
+                "{{animalId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOutro}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Outro tutor vê a própria lista vazia",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nenhum animal de outro tutor aparece\", () => pm.expect(pm.response.json()).to.be.an(\"array\").that.is.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/animais",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "animais"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOutro}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
