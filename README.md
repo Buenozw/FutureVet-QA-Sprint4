@@ -26,9 +26,7 @@ Plano de testes manuais de validação no nível de sistema, com 15 casos de tes
 
 Testes automatizados de integração e desempenho da API REST: 19 requisições e 61 verificações, cobrindo autenticação JWT, animais, carteira de vacinação, agenda, regras de negócio, isolamento entre tutores e tempo de resposta.
 
-- 🎬 **Vídeo (configuração, execução e resultados):** COLE_AQUI_O_LINK_DO_YOUTUBE
-- Collection: [`postman/FutureVet.postman_collection.json`](postman/FutureVet.postman_collection.json)
-- Ambiente: [`postman/FutureVet-Render.postman_environment.json`](postman/FutureVet-Render.postman_environment.json)
+- 🎬 **Vídeo (configuração, execução e resultados):** https://youtu.be/lXPxz47oDB8
 
 ### Como executar
 
